@@ -14,7 +14,10 @@ export default function FollowupsPage() {
           </p>
         </div>
         <Button asChild>
-          <Link href="/dashboard/followups/new" className="flex items-center gap-1">
+          <Link
+            href="/dashboard/followups/new"
+            className="flex items-center gap-1"
+          >
             <PlusCircle className="h-4 w-4" />
             New Follow-up
           </Link>
