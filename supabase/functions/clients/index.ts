@@ -12,6 +12,20 @@ export async function fetchClients() {
   return data??[];
 }
 
+export async function getClientById(id: string) {
+  const { data, error } = await supabase
+    .from('clients')
+    .select('*')
+    .eq('id', id)
+    .maybeSingle();  
+
+    console.log("Supabase response:", { data, error });
+
+  if (error) throw new Error(error.message);
+  if (!data) return null;  
+  return data;
+}
+
 // Create a new client
 export async function createClient(clientData: {
   user_id:string;
@@ -58,4 +72,5 @@ export async function deleteClient(id: string) {
     .eq('id', id);
 
   if (error) throw new Error(error.message);
+ 
 }
