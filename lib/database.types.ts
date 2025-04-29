@@ -58,12 +58,13 @@ export interface Database {
           user_id: string
           client_id: string
           subject: string
-          content: string
-          meeting_context: string | null
+          
+          body: string | null
           status: string
-          scheduled_date: string | null
-          sent_date: string | null
+          scheduled_at: string | null
+          sent_at: string | null
           opened_date: string | null
+          is_opened:boolean
           created_at: string
           updated_at: string
         }
@@ -72,12 +73,13 @@ export interface Database {
           user_id: string
           client_id: string
           subject: string
-          content: string
-          meeting_context?: string | null
+          
+          body?: string | null
           status?: string
-          scheduled_date?: string | null
-          sent_date?: string | null
-          opened_date?: string | null
+          scheduled_at?: string | null
+          sent_at?: string | null
+          opened_at?: string | null
+          is_opened:boolean
           created_at?: string
           updated_at?: string
         }
@@ -86,12 +88,13 @@ export interface Database {
           user_id?: string
           client_id?: string
           subject?: string
-          content?: string
-          meeting_context?: string | null
+          
+          body?: string | null
           status?: string
-          scheduled_date?: string | null
-          sent_date?: string | null
-          opened_date?: string | null
+          scheduled_at?: string | null
+          sent_at?: string | null
+          opened_at?: string | null
+          is_opened:boolean
           created_at?: string
           updated_at?: string
         }

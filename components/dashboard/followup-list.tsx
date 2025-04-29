@@ -29,108 +29,63 @@ import {
 import { MoreHorizontal, Search, Eye, Clock } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { formatDistanceToNow, format } from "date-fns";
+import { formatDistanceToNow } from "date-fns";
+import { formatInTimeZone, format } from "date-fns-tz";
 import Link from "next/link";
 
-// Mock follow-up data
-const followups = [
-  {
-    id: "1",
-    client: {
-      name: "Alex Johnson",
-      email: "alex@acme.com",
-      initials: "AJ",
-    },
-    subject: "Follow-up on our product demo",
-    status: "sent",
-    sentDate: new Date("2025-03-29T14:30:00"),
-    openDate: new Date("2025-03-29T15:45:00"),
-    scheduledDate: null,
-  },
-  {
-    id: "2",
-    client: {
-      name: "Samantha Williams",
-      email: "samantha@globex.com",
-      initials: "SW",
-    },
-    subject: "Next steps after our meeting",
-    status: "opened",
-    sentDate: new Date("2025-03-25T11:15:00"),
-    openDate: new Date("2025-03-25T13:20:00"),
-    scheduledDate: null,
-  },
-  {
-    id: "3",
-    client: {
-      name: "David Miller",
-      email: "david@universalexports.com",
-      initials: "DM",
-    },
-    subject: "Proposal for your review",
-    status: "scheduled",
-    sentDate: null,
-    openDate: null,
-    scheduledDate: new Date("2025-04-05T09:00:00"),
-  },
-  {
-    id: "4",
-    client: {
-      name: "Jessica Chen",
-      email: "jessica@soylentcorp.com",
-      initials: "JC",
-    },
-    subject: "Product update and new features",
-    status: "sent",
-    sentDate: new Date("2025-03-20T16:20:00"),
-    openDate: null,
-    scheduledDate: null,
-  },
-  {
-    id: "5",
-    client: {
-      name: "Michael Rodriguez",
-      email: "michael@umbrellacorp.com",
-      initials: "MR",
-    },
-    subject: "Quarterly review meeting",
-    status: "draft",
-    sentDate: null,
-    openDate: null,
-    scheduledDate: null,
-  },
-];
-
-export function FollowupList() {
+export function FollowupList({ followups }: { followups: Followup[] }) {
   const [searchTerm, setSearchTerm] = useState("");
 
   const filteredFollowups = followups.filter(
     (followup) =>
-      followup.client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      followup.client.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      followup.clients?.full_name
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase()) ||
+      followup.clients?.email
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase()) ||
       followup.subject.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const getStatusDisplay = (status: string, followup: (typeof followups)[0]) => {
+  const getStatusDisplay = (status: string, followup: Followup) => {
     switch (status) {
       case "sent":
+        const sentDate = new Date(followup.sent_at!);
+
+        const localSentDate = new Date(
+          sentDate.getTime() - sentDate.getTimezoneOffset() * 60000
+        );
+
         return (
           <Badge variant="secondary">
-            Sent {formatDistanceToNow(followup.sentDate!, { addSuffix: true })}
+            Sent{" "}
+            {formatDistanceToNow(localSentDate, {
+              addSuffix: true,
+            })}
           </Badge>
         );
       case "opened":
         return (
           <Badge variant="default" className="flex items-center gap-1">
             <Eye className="h-3 w-3" />
-            Opened {formatDistanceToNow(followup.openDate!, { addSuffix: true })}
+            Opened {followup.is_opened ? "Yes" : "No"}
           </Badge>
         );
       case "scheduled":
         return (
-          <Badge variant="outline" className="flex items-center gap-1">
+          <Badge
+            variant="outline"
+            className="flex items-center gap-1 max-w-fit px-4"
+          >
             <Clock className="h-3 w-3" />
-            Scheduled for {format(followup.scheduledDate!, "MMM d, h:mm a")}
+            Scheduled for{" "}
+            {format(
+              followup.scheduled_at
+                ? new Date(followup.scheduled_at)
+                : new Date(),
+              "dd-MM-yyyy HH:mm a",
+              { timeZone: "America/New_York" }
+            )}
           </Badge>
         );
       case "draft":
@@ -176,11 +131,17 @@ export function FollowupList() {
                   <TableCell>
                     <div className="flex items-center gap-3">
                       <Avatar className="h-8 w-8">
-                        <AvatarFallback>{followup.client.initials}</AvatarFallback>
+                        <AvatarFallback>
+                          {followup.clients?.full_name.charAt(0)}
+                        </AvatarFallback>
                       </Avatar>
                       <div>
-                        <div className="font-medium">{followup.client.name}</div>
-                        <div className="text-xs text-muted-foreground">{followup.client.email}</div>
+                        <div className="font-medium">
+                          {followup.clients?.full_name}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {followup.clients?.email}
+                        </div>
                       </div>
                     </div>
                   </TableCell>
@@ -200,10 +161,16 @@ export function FollowupList() {
                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem asChild>
-                          <Link href={`/dashboard/followups/${followup.id}`}>View Details</Link>
+                          <Link href={`/dashboard/followups/${followup.id}`}>
+                            View Details
+                          </Link>
                         </DropdownMenuItem>
                         <DropdownMenuItem asChild>
-                          <Link href={`/dashboard/followups/${followup.id}/edit`}>Edit</Link>
+                          <Link
+                            href={`/dashboard/followups/${followup.id}/edit`}
+                          >
+                            Edit
+                          </Link>
                         </DropdownMenuItem>
                         {followup.status === "draft" && (
                           <DropdownMenuItem>Send Now</DropdownMenuItem>

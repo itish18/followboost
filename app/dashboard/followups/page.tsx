@@ -2,8 +2,21 @@ import { Button } from "@/components/ui/button";
 import { PlusCircle } from "lucide-react";
 import { FollowupList } from "@/components/dashboard/followup-list";
 import Link from "next/link";
+import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
+import { cookies } from "next/headers";
+import { notFound } from "next/navigation";
 
-export default function FollowupsPage() {
+export default async function FollowupsPage() {
+  const supabase = createServerComponentClient({ cookies });
+
+  const { data: followups, error } = await supabase
+    .from("followups")
+    .select("*, clients(full_name,email)");
+
+  if (error) {
+    notFound();
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -23,7 +36,7 @@ export default function FollowupsPage() {
           </Link>
         </Button>
       </div>
-      <FollowupList />
+      <FollowupList followups={followups} />
     </div>
   );
 }

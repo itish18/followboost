@@ -30,7 +30,7 @@ interface ClientFormProps {
   clientId: string;
 }
 
-export default function ClientForm({ initialData, clientId }: ClientFormProps) {
+export function ClientForm({ initialData, clientId }: ClientFormProps) {
   const router = useRouter();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
