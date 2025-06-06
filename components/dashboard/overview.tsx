@@ -1,6 +1,23 @@
 "use client";
 
-import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import {
+  Bar,
+  BarChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+
+interface ChartData {
+  name: string;
+  sent: number;
+  opened: number;
+}
+
+interface OverviewProps {
+  data: ChartData[];
+}
 
 const data = [
   {
@@ -40,7 +57,7 @@ const data = [
   },
 ];
 
-export function Overview() {
+export function Overview({ data }: OverviewProps) {
   return (
     <ResponsiveContainer width="100%" height={350}>
       <BarChart data={data}>
@@ -56,10 +73,40 @@ export function Overview() {
           fontSize={12}
           tickLine={false}
           axisLine={false}
+          allowDecimals={false}
         />
-        <Tooltip />
-        <Bar dataKey="sent" fill="hsl(var(--chart-1))" radius={[4, 4, 0, 0]} />
-        <Bar dataKey="opened" fill="hsl(var(--chart-2))" radius={[4, 4, 0, 0]} />
+        <Tooltip
+          content={({ active, payload }) => {
+            if (active && payload && payload.length) {
+              return (
+                <div className="bg-background border rounded-lg shadow-lg p-2">
+                  <p className="font-medium">{payload[0].payload.name}</p>
+                  <p className="text-sm">Sent: {payload[0].value}</p>
+                  <p className="text-sm">Opened: {payload[1].value}</p>
+                  <p className="text-sm text-muted-foreground">
+                    Open Rate:{" "}
+                    {Math.round((payload[1].value / payload[0].value) * 100) ||
+                      0}
+                    %
+                  </p>
+                </div>
+              );
+            }
+            return null;
+          }}
+        />
+        <Bar
+          name="Sent"
+          dataKey="sent"
+          fill="hsl(var(--chart-1))"
+          radius={[4, 4, 0, 0]}
+        />
+        <Bar
+          name="Opened"
+          dataKey="opened"
+          fill="hsl(var(--chart-2))"
+          radius={[4, 4, 0, 0]}
+        />
       </BarChart>
     </ResponsiveContainer>
   );

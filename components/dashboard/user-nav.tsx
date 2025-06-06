@@ -16,9 +16,25 @@ import { MobileNav } from "@/components/dashboard/nav";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
 export function UserNav() {
   const router = useRouter();
+  const [user, setUser] = useState<{
+    full_name: string;
+    email: string | undefined;
+  }>({
+    full_name: "",
+    email: "",
+  });
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) {
+        setUser({ full_name: user.user_metadata.full_name, email: user.email });
+      }
+    });
+  }, []);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -34,24 +50,26 @@ export function UserNav() {
           <Button variant="ghost" className="relative h-8 w-8 rounded-full">
             <Avatar className="h-9 w-9">
               <AvatarImage src="/avatars/01.png" alt="@user" />
-              <AvatarFallback>JS</AvatarFallback>
+              <AvatarFallback>{user.full_name?.charAt(0)}</AvatarFallback>
             </Avatar>
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent className="w-56" align="end" forceMount>
           <DropdownMenuLabel className="font-normal">
             <div className="flex flex-col space-y-1">
-              <p className="text-sm font-medium leading-none">John Smith</p>
+              <p className="text-sm font-medium leading-none">
+                {user.full_name}
+              </p>
               <p className="text-xs leading-none text-muted-foreground">
-                john.smith@example.com
+                {user.email}
               </p>
             </div>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuGroup>
-            <DropdownMenuItem asChild>
+            {/* <DropdownMenuItem asChild>
               <Link href="/dashboard/profile">Profile</Link>
-            </DropdownMenuItem>
+            </DropdownMenuItem> */}
             <DropdownMenuItem asChild>
               <Link href="/dashboard/settings">Settings</Link>
             </DropdownMenuItem>

@@ -22,3 +22,28 @@ type Followup={
   created_at :string;
   clients:Client;
 }  
+
+type User={
+  id: string
+  email: string
+  full_name: string | null
+  created_at: string
+  updated_at: string
+}
+
+interface RecentFollowupsProps {
+  followups: {
+    id: string;
+    subject: string;
+    status: string;
+    sent_at: string | null;
+    scheduled_at: string | null;
+    is_opened: boolean;
+    created_at:string;
+    clients: {
+      id: string;
+      full_name: string;
+      email: string;
+    };
+  }[];
+}

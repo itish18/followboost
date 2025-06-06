@@ -43,7 +43,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { supabase } from "@/lib/supabase";
-import { createFollowup } from "@/supabase/functions/followup";
+import { createFollowup, updateFollowUp } from "@/supabase/functions/followup";
+import { useSendEmail } from "@/hooks/use-send-email";
 
 // Sample AI-generated email
 const sampleEmail = `Dear [Client Name],
@@ -61,20 +62,53 @@ Looking forward to hearing from you.
 Best regards,
 [Your Name]`;
 
-export function FollowupForm({ clients }: { clients: Client[] }) {
-  const { toast } = useToast();
-  const router = useRouter();
+const utcToLocal = (dateString: string | null | undefined) => {
+  if (!dateString) return undefined;
+  const date = new Date(dateString);
+  return new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+};
 
-  const [client, setClient] = useState("");
-  const [subject, setSubject] = useState("");
+const getLocalTimeString = (dateString: string | null | undefined) => {
+  if (!dateString) return "09:00";
+  const localDate = utcToLocal(dateString);
+  return localDate ? format(localDate, "HH:mm") : "09:00";
+};
+
+export function FollowupForm({
+  clients,
+  initialData,
+}: {
+  clients: Client[];
+  initialData: Followup | null;
+}) {
+  const router = useRouter();
+  const { toast } = useToast();
+  const { sendEmail } = useSendEmail();
+
+  const [client, setClient] = useState(initialData?.client_id || "");
+  const [subject, setSubject] = useState(initialData?.subject || "");
   const [meetingContext, setMeetingContext] = useState("");
-  const [emailContent, setEmailContent] = useState("");
+  const [emailContent, setEmailContent] = useState(initialData?.body || "");
   const [isGenerating, setIsGenerating] = useState(false);
-  const [sendOption, setSendOption] = useState("now");
-  const [date, setDate] = useState<Date>();
-  const [time, setTime] = useState("09:00");
+  const [sendOption, setSendOption] = useState(
+    (initialData?.status === "scheduled"
+      ? "later"
+      : initialData?.status === "sent"
+        ? "now"
+        : initialData?.status) || "now"
+  );
+  const [date, setDate] = useState<Date | undefined>(
+    utcToLocal(initialData?.scheduled_at)
+  );
+  const [time, setTime] = useState(
+    getLocalTimeString(initialData?.scheduled_at)
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [open, setOpen] = useState(false);
+  const [generatingEmail, setGeneratingEmail] = useState(false);
+  const [tone, setTone] = useState<"professional" | "friendly" | "formal">(
+    "professional"
+  );
 
   const timeSlots = Array.from({ length: 19 }, (_, i) => {
     const hour = Math.floor(i / 2) + 9;
@@ -85,38 +119,53 @@ export function FollowupForm({ clients }: { clients: Client[] }) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  const handleGenerate = () => {
+  const generateEmail = async () => {
     if (!client || !meetingContext) {
       toast({
-        title: "Missing information",
-        description: "Please select a client and provide meeting context.",
+        title: "Please select a client and provide meeting context",
         variant: "destructive",
       });
       return;
     }
 
-    setIsGenerating(true);
+    setGeneratingEmail(true);
+    try {
+      const foundClient = clients.find((c) => c.id === client);
+      const response = await fetch(
+        `https://${process.env.NEXT_PUBLIC_SUPABASE_PROJECT_REF}.functions.supabase.co/generate-email`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`,
+          },
+          body: JSON.stringify({
+            clientName: foundClient?.full_name,
+            meetingContext,
+            tone,
+            additionalNotes: "",
+          }),
+        }
+      );
 
-    // Simulate AI generation
-    setTimeout(() => {
-      const selectedClient = clients.find((c) => c.id === client);
-      let generatedEmail = sampleEmail;
-
-      if (selectedClient) {
-        generatedEmail = generatedEmail.replace(
-          "[Client Name]",
-          selectedClient.full_name
-        );
+      const data = await response.json();
+      if (data.success && data.emailBody) {
+        setEmailContent(data.emailBody);
+        toast({
+          title: "Email generated successfully!",
+        });
+      } else {
+        throw new Error(data.error || "Failed to generate email");
       }
-
-      setEmailContent(generatedEmail);
-      setIsGenerating(false);
-
+    } catch (error) {
       toast({
-        title: "Email generated",
-        description: "Your follow-up email has been created.",
+        title: "Failed to generate email. Please try again.",
+        variant: "destructive",
       });
-    }, 2000);
+      console.error("Error generating email:", error);
+    } finally {
+      setGeneratingEmail(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -141,13 +190,30 @@ export function FollowupForm({ clients }: { clients: Client[] }) {
       return;
     }
 
-    if (sendOption === "later" && (!date || !time)) {
-      toast({
-        title: "Missing schedule",
-        description: "Please select both date and time for scheduled delivery.",
-        variant: "destructive",
-      });
-      return;
+    if (sendOption === "later") {
+      if (!date || !time) {
+        toast({
+          title: "Missing schedule",
+          description:
+            "Please select both date and time for scheduled delivery.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const scheduledDate = new Date(date);
+      const [hours, minutes] = time.split(":").map(Number);
+      scheduledDate.setHours(hours, minutes);
+
+      const now = new Date();
+      if (scheduledDate <= now) {
+        toast({
+          title: "Invalid schedule",
+          description: "The scheduled time must be in the future.",
+          variant: "destructive",
+        });
+        return;
+      }
     }
 
     setIsSubmitting(true);
@@ -166,7 +232,7 @@ export function FollowupForm({ clients }: { clients: Client[] }) {
         scheduledFor = scheduledDate.toISOString();
       }
 
-      const { id } = await createFollowup({
+      const followupData = {
         user_id: user.id,
         client_id: client,
         subject,
@@ -176,30 +242,44 @@ export function FollowupForm({ clients }: { clients: Client[] }) {
           sendOption === "now"
             ? "sent"
             : sendOption === "draft"
-            ? "draft"
-            : "scheduled",
+              ? "draft"
+              : "scheduled",
         is_opened: false,
         sent_at: sendOption === "now" ? new Date().toISOString() : null,
-      });
+      };
 
-      if (id) {
-        toast({
-          title: "Success",
-          description:
-            sendOption === "now"
-              ? "Your follow-up email has been sent."
-              : sendOption === "draft"
-              ? "Your email has been saved as draft"
-              : "Your follow-up email has been scheduled.",
+      let result;
+
+      if (sendOption === "now") {
+        const emailResponse = await sendEmail({
+          to: selectedClient.email,
+          subject: followupData.subject,
+          html: followupData.body,
         });
-      } else {
-        toast({
-          title: "Error",
-          description: "Failed to send/schedule email",
-          variant: "destructive",
-        });
+
+        if (!emailResponse.success) {
+          throw new Error("Failed to send email");
+        }
       }
 
+      if (initialData?.id) {
+        result = await updateFollowUp(followupData, initialData?.id);
+      } else {
+        result = await createFollowup(followupData);
+      }
+
+      if (result) {
+        toast({
+          title: "Success",
+          description: initialData
+            ? "Follow-up email has been updated."
+            : sendOption === "now"
+              ? "Your follow-up email has been sent."
+              : sendOption === "draft"
+                ? "Your email has been saved as draft"
+                : "Your follow-up email has been scheduled.",
+        });
+      }
       router.push("/dashboard/followups");
       router.refresh();
     } catch (error) {
@@ -305,13 +385,32 @@ export function FollowupForm({ clients }: { clients: Client[] }) {
               />
             </div>
 
+            <div className="space-y-2">
+              <Label htmlFor="tone">Email Tone</Label>
+              <Select
+                value={tone}
+                onValueChange={(
+                  value: "professional" | "friendly" | "formal"
+                ) => setTone(value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select tone" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="professional">Professional</SelectItem>
+                  <SelectItem value="friendly">Friendly</SelectItem>
+                  <SelectItem value="formal">Formal</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
             <Button
               type="button"
-              onClick={handleGenerate}
-              disabled={isGenerating || !client || !meetingContext}
+              onClick={generateEmail}
+              disabled={generatingEmail || !client || !meetingContext}
               className="w-full"
             >
-              {isGenerating ? (
+              {generatingEmail ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Generating...
@@ -432,11 +531,13 @@ export function FollowupForm({ clients }: { clients: Client[] }) {
               <Button type="submit" disabled={isSubmitting || !emailContent}>
                 {isSubmitting
                   ? "Submitting..."
-                  : sendOption === "now"
-                  ? "Send Now"
-                  : sendOption === "draft"
-                  ? "Save"
-                  : "Schedule"}
+                  : initialData
+                    ? "Update"
+                    : sendOption === "now"
+                      ? "Send Now"
+                      : sendOption === "draft"
+                        ? "Save"
+                        : "Schedule"}
               </Button>
             </CardFooter>
           </Card>

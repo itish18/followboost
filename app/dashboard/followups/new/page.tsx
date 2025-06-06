@@ -23,7 +23,7 @@ export default async function NewFollowupPage() {
         </p>
       </div>
 
-      <FollowupForm clients={clients} />
+      <FollowupForm clients={clients} initialData={null} />
     </div>
   );
 }
