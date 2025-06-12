@@ -85,8 +85,18 @@ export function Overview({ data }: OverviewProps) {
                   <p className="text-sm">Opened: {payload[1].value}</p>
                   <p className="text-sm text-muted-foreground">
                     Open Rate:{" "}
-                    {Math.round((payload[1].value / payload[0].value) * 100) ||
-                      0}
+                    {(() => {
+                      const sent = payload?.[0]?.value;
+                      const opened = payload?.[1]?.value;
+                      if (
+                        typeof sent === "number" &&
+                        sent > 0 &&
+                        typeof opened === "number"
+                      ) {
+                        return Math.round((opened / sent) * 100);
+                      }
+                      return 0;
+                    })()}
                     %
                   </p>
                 </div>

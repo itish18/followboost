@@ -1,4 +1,6 @@
 // app/dashboard/followups/[followupId]/page.tsx
+export const dynamic = "force-dynamic";
+
 import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
 import { cookies } from "next/headers";
 import { notFound } from "next/navigation";

@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { FollowupForm } from "@/components/dashboard/followup-form";
 import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
 import { cookies } from "next/headers";

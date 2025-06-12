@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { Button } from "@/components/ui/button";
 import { PlusCircle } from "lucide-react";
 import { FollowupList } from "@/components/dashboard/followup-list";
